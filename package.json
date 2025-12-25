@@ -1,0 +1,16 @@
+{
+  "name": "youtube-automation-server",
+  "version": "1.0.0",
+  "description": "A simple Node.js server to create YouTube live streams.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "googleapis": "^137.1.0"
+  }
+}
