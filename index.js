@@ -2,7 +2,8 @@ const express = require('express');
 const { google } = require('googleapis');
 const cors = require('cors');
 
-console.log("--- SERVER RUNNING LATEST CODE (v4-stream-now-test) ---");
+// Reverted to the final, correct version.
+console.log("--- SERVER RUNNING LATEST CODE (v5-final) ---");
 
 const app = express();
 app.use(express.json());
@@ -24,19 +25,20 @@ oauth2Client.setCredentials({ refresh_token: REFRESH_TOKEN });
 const youtube = google.youtube({ version: 'v3', auth: oauth2Client });
 
 app.post('/create-live-stream', async (req, res) => {
-    // MODIFIED: Title and description are now hardcoded for this test
-    const { title = "API Stream Now Test", description = "Testing a non-scheduled stream." } = req.body;
+    const { title, description, scheduledStartTime } = req.body;
+
+    if (!title || !description || !scheduledStartTime) {
+        return res.status(400).json({ error: 'Missing required fields: title, description, scheduledStartTime' });
+    }
 
     try {
-        console.log("Attempting to create a 'Stream Now' broadcast...");
-
         const response = await youtube.liveBroadcasts.insert({
             part: ['id', 'snippet', 'contentDetails', 'status'],
             requestBody: {
                 snippet: {
                     title,
                     description,
-                    // MODIFIED: scheduledStartTime has been removed to create a "stream now" event
+                    scheduledStartTime,
                 },
                 contentDetails: {
                     enableAutoStart: true,
@@ -46,22 +48,24 @@ app.post('/create-live-stream', async (req, res) => {
                     },
                 },
                 status: {
-                    privacyStatus: 'private', // Testing with private
+                    privacyStatus: 'unlisted',
                     selfDeclaredMadeForKids: false,
                 },
             },
         });
 
         const liveVideoId = response.data.id;
-        console.log("Successfully created broadcast with ID:", liveVideoId);
+        if (!liveVideoId) {
+            throw new Error('Failed to get broadcast ID from YouTube.');
+        }
+
         res.status(200).json({ liveVideoId });
 
     } catch (err) {
-        console.error('YouTube API Error (Stream Now Test):', err);
-        // Return the actual error from YouTube for better diagnostics
-        res.status(err.code || 500).json({ 
-            error: 'An error occurred during the stream now test.',
-            youtube_error: err.errors || err.message
+        console.error('YouTube API Error:', err);
+        res.status(500).json({ 
+            error: 'An error occurred while creating the YouTube live stream.',
+            youtube_error: err.errors || err.message 
         });
     }
 });
