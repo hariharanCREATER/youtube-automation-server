@@ -2,7 +2,7 @@ const express = require('express');
 const { google } = require('googleapis');
 const cors = require('cors');
 
-console.log("--- SERVER RUNNING LATEST CODE (v3-diagnostic) ---");
+console.log("--- SERVER RUNNING LATEST CODE (v4-stream-now-test) ---");
 
 const app = express();
 app.use(express.json());
@@ -23,48 +23,20 @@ const oauth2Client = new google.auth.OAuth2(
 oauth2Client.setCredentials({ refresh_token: REFRESH_TOKEN });
 const youtube = google.youtube({ version: 'v3', auth: oauth2Client });
 
-// --- Start of new diagnostic code ---
-async function logChannelInfo() {
-  try {
-    console.log('--- DIAGNOSTIC: Fetching YouTube channel info... ---');
-    const response = await youtube.channels.list({
-      part: 'snippet',
-      mine: true
-    });
-    if (response.data.items && response.data.items.length > 0) {
-      const channelTitle = response.data.items[0].snippet.title;
-      console.log(`--- DIAGNOSTIC SUCCESS: Authenticated with YouTube channel: [${channelTitle}] ---`);
-    } else {
-        console.log('--- DIAGNOSTIC WARNING: Authentication successful, but no channel found for this account. ---');
-    }
-  } catch (error) {
-    console.error('--- DIAGNOSTIC ERROR: Could not authenticate with YouTube. The REFRESH_TOKEN may be invalid or for the wrong account. ---');
-    if (error.response && error.response.data && error.response.data.error) {
-        console.error('YouTube API Error:', error.response.data.error.message);
-    } else {
-        console.error('Error fetching channel info:', error.message);
-    }
-  }
-}
-
-logChannelInfo();
-// --- End of new diagnostic code ---
-
 app.post('/create-live-stream', async (req, res) => {
-    const { title, description, scheduledStartTime } = req.body;
-
-    if (!title || !description || !scheduledStartTime) {
-        return res.status(400).json({ error: 'Missing required fields: title, description, scheduledStartTime' });
-    }
+    // MODIFIED: Title and description are now hardcoded for this test
+    const { title = "API Stream Now Test", description = "Testing a non-scheduled stream." } = req.body;
 
     try {
+        console.log("Attempting to create a 'Stream Now' broadcast...");
+
         const response = await youtube.liveBroadcasts.insert({
             part: ['id', 'snippet', 'contentDetails', 'status'],
             requestBody: {
                 snippet: {
                     title,
                     description,
-                    scheduledStartTime,
+                    // MODIFIED: scheduledStartTime has been removed to create a "stream now" event
                 },
                 contentDetails: {
                     enableAutoStart: true,
@@ -74,22 +46,23 @@ app.post('/create-live-stream', async (req, res) => {
                     },
                 },
                 status: {
-                    privacyStatus: 'unlisted',
+                    privacyStatus: 'private', // Testing with private
                     selfDeclaredMadeForKids: false,
                 },
             },
         });
 
         const liveVideoId = response.data.id;
-        if (!liveVideoId) {
-            throw new Error('Failed to get broadcast ID from YouTube.');
-        }
-
+        console.log("Successfully created broadcast with ID:", liveVideoId);
         res.status(200).json({ liveVideoId });
 
     } catch (err) {
-        console.error('YouTube API Error:', err);
-        res.status(500).json({ error: 'An error occurred while creating the YouTube live stream.' });
+        console.error('YouTube API Error (Stream Now Test):', err);
+        // Return the actual error from YouTube for better diagnostics
+        res.status(err.code || 500).json({ 
+            error: 'An error occurred during the stream now test.',
+            youtube_error: err.errors || err.message
+        });
     }
 });
 
